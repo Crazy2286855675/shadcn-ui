@@ -6,6 +6,7 @@ import {
   getConfig,
   resolveConfigPaths,
 } from "@/src/utils/get-config"
+import { fetchRegistry } from "@/src/utils/registry"
 import fg from "fast-glob"
 import fs from "fs-extra"
 import { loadConfig } from "tsconfig-paths"
@@ -192,7 +193,8 @@ export async function getTsConfig() {
 
 export async function getProjectConfig(
   cwd: string,
-  defaultProjectInfo: ProjectInfo | null = null
+  defaultProjectInfo: ProjectInfo | null = null,
+  registry?: string
 ): Promise<Config | null> {
   // Check for existing component config.
   const [existingConfig, projectInfo] = await Promise.all([
@@ -214,7 +216,8 @@ export async function getProjectConfig(
     return null
   }
 
-  const config: RawConfig = {
+  // Fetch config from custom registry if it exists
+  let config: RawConfig = {
     $schema: "https://ui.shadcn.com/schema.json",
     rsc: projectInfo.isRSC,
     tsx: projectInfo.isTsx,
@@ -233,6 +236,28 @@ export async function getProjectConfig(
       lib: `${projectInfo.aliasPrefix}/lib`,
       utils: `${projectInfo.aliasPrefix}/lib/utils`,
     },
+  }
+
+  console.log(222, registry)
+  if (registry) {
+    config.registry = registry
+  }
+
+  const [result] = await fetchRegistry(["config.json"], registry, true)
+  if (result) {
+    config = {
+      ...config,
+      ...result,
+      tailwind: {
+        ...config.tailwind,
+        ...(result as any).tailwind,
+      },
+      aliases: {
+        ...config.aliases,
+        ...(result as any).aliases,
+      },
+    }
+    console.log("Fetched config from custom registry:", config)
   }
 
   return await resolveConfigPaths(cwd, config)
