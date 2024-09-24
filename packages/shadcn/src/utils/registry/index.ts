@@ -17,16 +17,16 @@ import { HttpsProxyAgent } from "https-proxy-agent"
 import fetch from "node-fetch"
 import { z } from "zod"
 
-const REGISTRY_URL = process.env.REGISTRY_URL ?? "https://ui.shadcn.com/r"
+export const REGISTRY_URL =
+  process.env.REGISTRY_URL ?? "https://ui.shadcn.com/r"
 
 const agent = process.env.https_proxy
   ? new HttpsProxyAgent(process.env.https_proxy)
   : undefined
 
-export async function getRegistryIndex(registry?: string) {
+export async function getRegistryIndex(registryUrl?: string) {
   try {
-    const [result] = await fetchRegistry(["index.json"], registry)
-
+    const [result] = await fetchRegistry(["index.json"], registryUrl)
     return registryIndexSchema.parse(result)
   } catch (error) {
     logger.error("\n")
@@ -34,9 +34,9 @@ export async function getRegistryIndex(registry?: string) {
   }
 }
 
-export async function getRegistryStyles(registry?: string) {
+export async function getRegistryStyles(registryUrl?: string) {
   try {
-    const [result] = await fetchRegistry(["styles/index.json"], registry)
+    const [result] = await fetchRegistry(["styles/index.json"], registryUrl)
 
     return stylesSchema.parse(result)
   } catch (error) {
@@ -49,26 +49,14 @@ export async function getRegistryStyles(registry?: string) {
 export async function getRegistryItem(
   name: string,
   style: string,
-  registry?: string,
-  registryFallback?: boolean
+  registryUrl?: string
 ) {
   try {
     let [result] = await fetchRegistry(
       [isUrl(name) ? name : `styles/${style}/${name}.json`],
-      registry,
+      registryUrl,
       true
     )
-
-    if (!result) {
-      console.log(3)
-      if (registryFallback) {
-        console.log(4)
-        ;[result] = await fetchRegistry([
-          isUrl(name) ? name : `styles/${style}/${name}.json`,
-        ])
-        console.log(5)
-      }
-    }
 
     return registryItemSchema.parse(result)
   } catch (error) {
@@ -179,13 +167,13 @@ export async function getItemTargetPath(
 
 export async function fetchRegistry(
   paths: string[],
-  registry?: string,
+  registryUrl?: string,
   ignoreErrors?: boolean
 ) {
   try {
     const results = await Promise.all(
       paths.map(async (path) => {
-        const url = getRegistryUrl(path, registry)
+        const url = getRegistryUrl(path, registryUrl)
         const response = await fetch(url, { agent })
 
         if (!response.ok) {
@@ -284,7 +272,7 @@ export async function registryResolveItemsTree(
   config: Config
 ) {
   try {
-    const index = await getRegistryIndex(config.registry)
+    const index = await getRegistryIndex(config.url)
 
     if (!index) {
       return null
@@ -293,12 +281,7 @@ export async function registryResolveItemsTree(
     let items = (
       await Promise.all(
         names.map(async (name) => {
-          const item = await getRegistryItem(
-            name,
-            config.style,
-            config.registry,
-            true
-          )
+          const item = await getRegistryItem(name, config.style, config.url)
           return item
         })
       )
@@ -316,10 +299,10 @@ export async function registryResolveItemsTree(
     const urls = Array.from([...names, ...uniqueDependencies]).map((name) =>
       getRegistryUrl(
         isUrl(name) ? name : `styles/${config.style}/${name}.json`,
-        config.registry
+        config.url
       )
     )
-    let result = await fetchRegistry(urls, config.registry)
+    let result = await fetchRegistry(urls, config.url)
     const payload = z.array(registryItemSchema).parse(result)
 
     if (!payload) {
@@ -328,14 +311,7 @@ export async function registryResolveItemsTree(
 
     // If we're resolving the index, we want it to go first.
     if (names.includes("index")) {
-      console.log("resolving index")
-      const index = await getRegistryItem(
-        "index",
-        config.style,
-        config.registry,
-        true
-      )
-      console.log("index", index)
+      const index = await getRegistryItem("index", config.style, config.url)
       if (index) {
         payload.unshift(index)
       }
@@ -438,7 +414,7 @@ export async function registryGetTheme(name: string, config: Config) {
   return theme
 }
 
-function getRegistryUrl(path: string, registry?: string) {
+function getRegistryUrl(path: string, registryUrl?: string) {
   if (isUrl(path)) {
     // If the url contains /chat/b/, we assume it's the v0 registry.
     // We need to add the /json suffix if it's missing.
@@ -450,7 +426,7 @@ function getRegistryUrl(path: string, registry?: string) {
     return url.toString()
   }
 
-  return `${registry || REGISTRY_URL}/${path}`
+  return `${registryUrl || REGISTRY_URL}/${path}`
 }
 
 function isUrl(path: string) {
@@ -460,4 +436,32 @@ function isUrl(path: string) {
   } catch (error) {
     return false
   }
+}
+
+export async function getDefaultConfig(
+  defaultConfig: Config,
+  registryUrl?: string
+) {
+  if (registryUrl === "https://ui.shadcn.com/r") {
+    return defaultConfig
+  }
+
+  const [result] = await fetchRegistry(["config.json"], registryUrl, true)
+
+  if (result) {
+    return {
+      ...defaultConfig,
+      ...result,
+      tailwind: {
+        ...defaultConfig.tailwind,
+        ...(result as any).tailwind,
+      },
+      aliases: {
+        ...defaultConfig.aliases,
+        ...(result as any).aliases,
+      },
+    } as Config
+  }
+
+  return defaultConfig
 }
