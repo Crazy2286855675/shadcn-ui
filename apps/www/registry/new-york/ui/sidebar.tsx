@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
@@ -10,7 +11,7 @@ import { cn } from "@/registry/new-york/lib/utils"
 import { Button } from "@/registry/new-york/ui/button"
 import { Input } from "@/registry/new-york/ui/input"
 import { Separator } from "@/registry/new-york/ui/separator"
-import { Sheet, SheetContent } from "@/registry/new-york/ui/sheet"
+import { Sheet, SheetContent, SheetTitle } from "@/registry/new-york/ui/sheet"
 import { Skeleton } from "@/registry/new-york/ui/skeleton"
 import {
   Tooltip,
@@ -207,6 +208,9 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
+            <VisuallyHidden.Root>
+              <SheetTitle>Sidebar</SheetTitle>
+            </VisuallyHidden.Root>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
