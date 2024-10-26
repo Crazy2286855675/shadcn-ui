@@ -86,6 +86,14 @@ We'll go over the colors later in the [theming section](/docs/components/sidebar
 
 <Steps>
 
+<Step>Install the following dependencies:</Step>
+
+```bash
+npm install @radix-ui/react-visually-hidden
+```
+
+> Note: The `@radix-ui/react-visually-hidden` package is required for improved accessibility, allowing screen readers to understand the purpose of the sidebar.
+
 <Step>Copy and paste the following code into your project.</Step>
 
 <ComponentSource name="sidebar" />
@@ -1322,6 +1330,10 @@ Here are some tips for styling the sidebar based on different states.
 You can find more tips on using states for styling in this [Twitter thread](https://x.com/shadcn/status/1842329158879420864).
 
 ## Changelog
+
+### 2024-10-26
+
+- [#5474](https://github.com/shadcn-ui/ui/issues/5474) - Fixed accessibility issue by adding a hidden `SheetTitle` to the Sidebar component.
 
 ### 2024-10-21
 
